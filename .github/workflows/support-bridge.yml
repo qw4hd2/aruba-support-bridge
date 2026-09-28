@@ -1,0 +1,65 @@
+name: Aruba Support Bridge
+
+# Runs the support bridge on a schedule so it works 24/7 without anyone's laptop being on.
+# Reads the shared Hostinger inbox and feeds each brand's mail to its triage function.
+# Cadence: every 30 min (fits GitHub's free minutes for a private repo). Tighten to '*/15 * * * *'
+# for faster handling, or widen to '0 * * * *' (hourly) for maximum free-tier headroom.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: support-bridge
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci || npm install
+
+      # --- arubaedcardexpress → apply.arubaedcardexpress.com (kuudnizh, catchall: its own + unmatched) ---
+      - name: "arubaedcardexpress · apply (catchall)"
+        env:
+          IMAP_USER: support@arubaedcardexpress.com
+          IMAP_PASS: ${{ secrets.IMAP_PASS }}
+          TRIAGE_URL: https://kuudnizhwazeiwnmgmvz.supabase.co/functions/v1/support-triage
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1dWRuaXpod2F6ZWl3bm1nbXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMDY4MTQsImV4cCI6MjA5MzU4MjgxNH0.myf_rXLePCdhpE23dXuwUHXGoMp-2RRmeE5nrmB7mn0
+          SUPPORT_INGEST_SECRET: ${{ secrets.SUPPORT_INGEST_SECRET }}
+          SUPPORT_SITE: arubaedcardexpress
+          MODE: recent
+          BATCH: "60"
+        run: node index.js
+
+      # --- arubaedcardexpress → arubaedcardexpress.com (yhlzrp, local-only: keeps only its own customers) ---
+      - name: "arubaedcardexpress · root (local-only)"
+        env:
+          IMAP_USER: support@arubaedcardexpress.com
+          IMAP_PASS: ${{ secrets.IMAP_PASS }}
+          TRIAGE_URL: https://yhlzrpisnriyhmmzpcmu.supabase.co/functions/v1/support-triage
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlobHpycGlzbnJpeWhtbXpwY211Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjg4MjQsImV4cCI6MjA5MjgwNDgyNH0.gikwr5juu-tp8_xRRb--e0pmHdDCloh-w6aCYNhNrrg
+          SUPPORT_INGEST_SECRET: ${{ secrets.SUPPORT_INGEST_SECRET }}
+          SUPPORT_SITE: arubaedcardexpress
+          MODE: recent
+          BATCH: "60"
+        run: node index.js
+
+      # --- edcardaruba → apply.edcardaruba.online (opfoczg) ---
+      - name: "edcardaruba"
+        env:
+          IMAP_USER: support@arubaedcardexpress.com
+          IMAP_PASS: ${{ secrets.IMAP_PASS }}
+          TRIAGE_URL: https://opfoczgtuxdepmyjoexy.supabase.co/functions/v1/support-triage
+          SUPABASE_ANON_KEY: sb_publishable_EtkUOpLDiUR6j13pk7cldA_U9Eozi9l
+          SUPPORT_INGEST_SECRET: ${{ secrets.SUPPORT_INGEST_SECRET }}
+          SUPPORT_SITE: edcardaruba
+          MODE: recent
+          BATCH: "60"
+        run: node index.js
