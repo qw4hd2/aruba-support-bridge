@@ -32,6 +32,10 @@ const SENT_MAILBOX = env.SENT_MAILBOX || "INBOX.Sent";
 const SENT_SCAN = Number(env.SENT_SCAN || 1000);
 // DRY_RUN: do everything EXCEPT actually call the triage — logs what it would do, sends nothing. For safe testing.
 const DRY_RUN = env.DRY_RUN === "1";
+// QUIET: suppress per-email log lines (from-address + subject = customer PII), keeping only counts/summary.
+// Use when logs are viewable by others (e.g. a public repo's Actions logs) so no customer data leaks.
+const QUIET = env.QUIET === "1";
+const plog = (...a) => { if (!QUIET) console.log(...a); };
 // Only send THIS domain's emails to the triage. The shared inbox holds mail for several Aruba domains; each
 // domain's bot/CRM handles only its own (routed by the To: address). Set SUPPORT_SITE per domain.
 const SUPPORT_SITE = env.SUPPORT_SITE || "arubaedcardexpress";
@@ -132,18 +136,18 @@ async function main() {
       if (SKIP_IF_REPLIED && payload.from) {
         const sentAt = sentMap.get(payload.from.toLowerCase());
         const inAt = new Date(payload.receivedAt).getTime();
-        if (sentAt && sentAt >= inAt - 60000) { repliedSkip++; console.log(`  ~ already replied (team/bot) | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,38)}`); continue; }
+        if (sentAt && sentAt >= inAt - 60000) { repliedSkip++; plog(`  ~ already replied (team/bot) | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,38)}`); continue; }
       }
-      if (DRY_RUN) { made++; console.log(`  → would process | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,40)}`); continue; }
+      if (DRY_RUN) { made++; plog(`  → would process | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,40)}`); continue; }
       const res = await triage(payload).catch((e) => ({ status: 0, body: e.message }));
       done++;
       if (res.status === 200 && res.body?.ok) {
-        if (res.body.skipped) { skippedTriage++; console.log(`  ~ skip [${res.body.skipped}]${res.body.removed ? " (removed stale)" : ""} | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,38)}`); }
-        else if (res.body.deduped) { deduped++; console.log(`  · dup   ${payload.from.slice(0,28).padEnd(28)} | ${payload.subject.slice(0,40)}`); }
-        else { made++; console.log(`  ✓ ${res.body.category?.padEnd(14)} ${res.body.suggested_action?.padEnd(14)} matched=${res.body.matched} conf=${res.body.confidence ?? "-"}${res.body.match_reason ? " ("+res.body.match_reason+")" : ""} | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,38)}`); }
+        if (res.body.skipped) { skippedTriage++; plog(`  ~ skip [${res.body.skipped}]${res.body.removed ? " (removed stale)" : ""} | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,38)}`); }
+        else if (res.body.deduped) { deduped++; plog(`  · dup   ${payload.from.slice(0,28).padEnd(28)} | ${payload.subject.slice(0,40)}`); }
+        else { made++; plog(`  ✓ ${res.body.category?.padEnd(14)} ${res.body.suggested_action?.padEnd(14)} matched=${res.body.matched} conf=${res.body.confidence ?? "-"}${res.body.match_reason ? " ("+res.body.match_reason+")" : ""} | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,38)}`); }
         if (MARK_SEEN && !res.body.deduped && !res.body.skipped) await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true }).catch(() => {});
       } else {
-        failed++; console.log(`  ✗ [${res.status}] ${JSON.stringify(res.body).slice(0,160)} | ${payload.subject.slice(0,40)}`);
+        failed++; plog(`  ✗ [${res.status}] ${JSON.stringify(res.body).slice(0,160)} | ${payload.subject.slice(0,40)}`);
       }
     }
   } finally {

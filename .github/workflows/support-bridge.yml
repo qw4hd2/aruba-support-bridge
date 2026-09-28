@@ -2,11 +2,10 @@ name: Aruba Support Bridge
 
 # Runs the support bridge on a schedule so it works 24/7 without anyone's laptop being on.
 # Reads the shared Hostinger inbox and feeds each brand's mail to its triage function.
-# Cadence: every 30 min (fits GitHub's free minutes for a private repo). Tighten to '*/15 * * * *'
-# for faster handling, or widen to '0 * * * *' (hourly) for maximum free-tier headroom.
+# Cadence: every 15 min (fast replies). Public repo + QUIET logging = unlimited free minutes, no PII in logs.
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch: {}
 
 concurrency:
@@ -36,6 +35,7 @@ jobs:
           SUPPORT_SITE: arubaedcardexpress
           MODE: recent
           BATCH: "60"
+          QUIET: "1"
         run: node index.js
 
       # --- arubaedcardexpress → arubaedcardexpress.com (yhlzrp, local-only: keeps only its own customers) ---
@@ -49,6 +49,7 @@ jobs:
           SUPPORT_SITE: arubaedcardexpress
           MODE: recent
           BATCH: "60"
+          QUIET: "1"
         run: node index.js
 
       # --- edcardaruba → apply.edcardaruba.online (opfoczg) ---
@@ -62,4 +63,5 @@ jobs:
           SUPPORT_SITE: edcardaruba
           MODE: recent
           BATCH: "60"
+          QUIET: "1"
         run: node index.js
