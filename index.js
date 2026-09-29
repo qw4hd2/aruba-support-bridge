@@ -14,6 +14,7 @@
 
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
+import nodemailer from "nodemailer";
 
 const env = process.env;
 const IMAP_HOST = env.IMAP_HOST || "imap.hostinger.com";
@@ -54,6 +55,33 @@ needed("IMAP_USER", "IMAP_PASS", "TRIAGE_URL", "SUPABASE_ANON_KEY", "SUPPORT_ING
 
 const addr = (a) => (a && a.value && a.value[0]) ? a.value[0].address : "";
 const addrName = (a) => (a && a.value && a.value[0]) ? (a.value[0].name || "") : "";
+
+// When the triage returns a `reply_out` (REPLY_MODE=smtp), the bridge sends that reply FROM the real support
+// mailbox over Hostinger SMTP (so it's a genuine support thread) and drops a copy in the Sent folder.
+const REPLY_FROM = env.REPLY_FROM || "support@arubaedcardexpress.com";
+const REPLY_FROM_NAME = env.REPLY_FROM_NAME || "Aruba ED Card Express";
+const smtpTx = nodemailer.createTransport({
+  host: env.SMTP_HOST || "smtp.hostinger.com",
+  port: Number(env.SMTP_PORT || 465),
+  secure: Number(env.SMTP_PORT || 465) === 465,
+  auth: { user: env.IMAP_USER, pass: env.IMAP_PASS },
+});
+const rawTx = nodemailer.createTransport({ streamTransport: true, buffer: true }); // builds raw MIME for the Sent copy
+
+async function sendReplyViaSmtp(client, r, messageId) {
+  const subj = /^re:/i.test(r.subject || "") ? r.subject : `Re: ${r.subject || "your ED card"}`;
+  const mail = {
+    from: `${REPLY_FROM_NAME} <${REPLY_FROM}>`,
+    to: r.to,
+    subject: subj,
+    text: r.body,
+    inReplyTo: messageId || undefined,
+    references: messageId || undefined,
+  };
+  await smtpTx.sendMail(mail);                          // real delivery
+  try { const built = await rawTx.sendMail(mail); await client.append(SENT_MAILBOX, built.message, ["\\Seen"]); }
+  catch (_e) { /* Sent-folder copy is best-effort */ }
+}
 
 async function triage(payload) {
   const r = await fetch(env.TRIAGE_URL, {
@@ -101,7 +129,7 @@ async function main() {
   console.log(`connected to ${IMAP_HOST} as ${env.IMAP_USER}`);
   const sentMap = SKIP_IF_REPLIED ? await buildSentMap(client) : new Map();
   const lock = await client.getMailboxLock("INBOX");
-  let done = 0, made = 0, deduped = 0, failed = 0, skipped = 0, skippedTriage = 0, repliedSkip = 0;
+  let done = 0, made = 0, deduped = 0, failed = 0, skipped = 0, skippedTriage = 0, repliedSkip = 0, repliesSent = 0;
   try {
     const status = await client.status("INBOX", { messages: true });
     const total = status.messages || 0;
@@ -145,6 +173,11 @@ async function main() {
         if (res.body.skipped) { skippedTriage++; plog(`  ~ skip [${res.body.skipped}]${res.body.removed ? " (removed stale)" : ""} | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,38)}`); }
         else if (res.body.deduped) { deduped++; plog(`  · dup   ${payload.from.slice(0,28).padEnd(28)} | ${payload.subject.slice(0,40)}`); }
         else { made++; plog(`  ✓ ${res.body.category?.padEnd(14)} ${res.body.suggested_action?.padEnd(14)} matched=${res.body.matched} conf=${res.body.confidence ?? "-"}${res.body.match_reason ? " ("+res.body.match_reason+")" : ""} | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,38)}`); }
+        // If the triage handed back a reply (REPLY_MODE=smtp), send it FROM the real support mailbox.
+        if (res.body.reply_out && res.body.reply_out.to) {
+          try { await sendReplyViaSmtp(client, res.body.reply_out, payload.messageId); repliesSent++; plog(`  ✉ replied from ${REPLY_FROM} → ${res.body.reply_out.to.slice(0,26)}`); }
+          catch (e) { console.log(`  ✗ SMTP reply failed: ${String(e.message || e).slice(0,90)}`); }
+        }
         if (MARK_SEEN && !res.body.deduped && !res.body.skipped) await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true }).catch(() => {});
       } else {
         failed++; plog(`  ✗ [${res.status}] ${JSON.stringify(res.body).slice(0,160)} | ${payload.subject.slice(0,40)}`);
@@ -153,6 +186,6 @@ async function main() {
   } finally {
     lock.release(); await client.logout();
   }
-  console.log(`\nDONE site=${SUPPORT_SITE} processed=${done} tickets=${made} deduped=${deduped} already-replied=${repliedSkip} routed-away=${skippedTriage} skipped(other-domain)=${skipped} failed=${failed}`);
+  console.log(`\nDONE site=${SUPPORT_SITE} processed=${done} tickets=${made} smtp-replies=${repliesSent} deduped=${deduped} already-replied=${repliedSkip} routed-away=${skippedTriage} skipped(other-domain)=${skipped} failed=${failed}`);
 }
 main().catch((e) => { console.error("FATAL", e); process.exit(1); });

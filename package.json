@@ -4,6 +4,12 @@
   "type": "module",
   "description": "Polls the Hostinger support inbox and feeds each email to the support-triage edge function.",
   "main": "index.js",
-  "scripts": { "start": "node index.js" },
-  "dependencies": { "imapflow": "^1.0.164", "mailparser": "^3.7.1" }
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "imapflow": "^1.0.164",
+    "mailparser": "^3.7.1",
+    "nodemailer": "^10.0.12"
+  }
 }
