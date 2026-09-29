@@ -164,7 +164,7 @@ async function main() {
       if (SKIP_IF_REPLIED && payload.from) {
         const sentAt = sentMap.get(payload.from.toLowerCase());
         const inAt = new Date(payload.receivedAt).getTime();
-        if (sentAt && sentAt >= inAt - 60000) { repliedSkip++; plog(`  ~ already replied (team/bot) | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,38)}`); continue; }
+        if (sentAt && sentAt >= inAt - 60000) { repliedSkip++; if (MARK_SEEN) await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true }).catch(() => {}); plog(`  ~ already replied (team/bot) | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,38)}`); continue; }
       }
       if (DRY_RUN) { made++; plog(`  → would process | ${payload.from.slice(0,24)} | ${payload.subject.slice(0,40)}`); continue; }
       const res = await triage(payload).catch((e) => ({ status: 0, body: e.message }));
@@ -178,7 +178,9 @@ async function main() {
           try { await sendReplyViaSmtp(client, res.body.reply_out, payload.messageId); repliesSent++; plog(`  ✉ replied from ${REPLY_FROM} → ${res.body.reply_out.to.slice(0,26)}`); }
           catch (e) { console.log(`  ✗ SMTP reply failed: ${String(e.message || e).slice(0,90)}`); }
         }
-        if (MARK_SEEN && !res.body.deduped && !res.body.skipped) await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true }).catch(() => {});
+        // Mark handled emails as read (made a ticket OR already-filed dup) so the inbox shows what's done.
+        // Not for "skipped" (routed to the sibling desk / another domain — that desk marks it).
+        if (MARK_SEEN && !res.body.skipped) await client.messageFlagsAdd(uid, ["\\Seen"], { uid: true }).catch(() => {});
       } else {
         failed++; plog(`  ✗ [${res.status}] ${JSON.stringify(res.body).slice(0,160)} | ${payload.subject.slice(0,40)}`);
       }

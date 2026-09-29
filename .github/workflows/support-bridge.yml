@@ -36,6 +36,7 @@ jobs:
           MODE: recent
           BATCH: "60"
           QUIET: "1"
+          MARK_SEEN: "1"
         run: node index.js
 
       # --- arubaedcardexpress → arubaedcardexpress.com (yhlzrp, local-only: keeps only its own customers) ---
@@ -50,6 +51,7 @@ jobs:
           MODE: recent
           BATCH: "60"
           QUIET: "1"
+          MARK_SEEN: "1"
         run: node index.js
 
       # --- edcardaruba → apply.edcardaruba.online (opfoczg) ---
@@ -64,6 +66,5 @@ jobs:
           MODE: recent
           BATCH: "60"
           QUIET: "1"
+          MARK_SEEN: "1"
         run: node index.js
-
-# schedule re-registered 20260928T035646Z
