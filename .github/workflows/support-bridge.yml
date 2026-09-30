@@ -32,7 +32,7 @@ jobs:
           TRIAGE_URL: https://kuudnizhwazeiwnmgmvz.supabase.co/functions/v1/support-triage
           SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1dWRuaXpod2F6ZWl3bm1nbXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMDY4MTQsImV4cCI6MjA5MzU4MjgxNH0.myf_rXLePCdhpE23dXuwUHXGoMp-2RRmeE5nrmB7mn0
           SUPPORT_INGEST_SECRET: ${{ secrets.SUPPORT_INGEST_SECRET }}
-          SUPPORT_SITE: arubaedcardexpress
+          SUPPORT_SITE: all
           MODE: recent
           BATCH: "60"
           QUIET: "1"
@@ -47,7 +47,7 @@ jobs:
           TRIAGE_URL: https://yhlzrpisnriyhmmzpcmu.supabase.co/functions/v1/support-triage
           SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlobHpycGlzbnJpeWhtbXpwY211Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjg4MjQsImV4cCI6MjA5MjgwNDgyNH0.gikwr5juu-tp8_xRRb--e0pmHdDCloh-w6aCYNhNrrg
           SUPPORT_INGEST_SECRET: ${{ secrets.SUPPORT_INGEST_SECRET }}
-          SUPPORT_SITE: arubaedcardexpress
+          SUPPORT_SITE: all
           MODE: recent
           BATCH: "60"
           QUIET: "1"
@@ -62,7 +62,7 @@ jobs:
           TRIAGE_URL: https://opfoczgtuxdepmyjoexy.supabase.co/functions/v1/support-triage
           SUPABASE_ANON_KEY: sb_publishable_EtkUOpLDiUR6j13pk7cldA_U9Eozi9l
           SUPPORT_INGEST_SECRET: ${{ secrets.SUPPORT_INGEST_SECRET }}
-          SUPPORT_SITE: edcardaruba
+          SUPPORT_SITE: all
           MODE: recent
           BATCH: "60"
           QUIET: "1"

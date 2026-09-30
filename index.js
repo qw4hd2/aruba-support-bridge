@@ -37,9 +37,13 @@ const DRY_RUN = env.DRY_RUN === "1";
 // Use when logs are viewable by others (e.g. a public repo's Actions logs) so no customer data leaks.
 const QUIET = env.QUIET === "1";
 const plog = (...a) => { if (!QUIET) console.log(...a); };
-// Only send THIS domain's emails to the triage. The shared inbox holds mail for several Aruba domains; each
-// domain's bot/CRM handles only its own (routed by the To: address). Set SUPPORT_SITE per domain.
+// Which of this inbox's emails to hand to this project's triage. A customer's ORDER can live in ANY of the
+// brand's Supabase projects, independent of which address they wrote to — so routing by the To: address made
+// the owning project miss its own customer (→ false "application not found"). Set SUPPORT_SITE="all" so every
+// project checks every email; each triage replies ONLY when it owns the customer, so there's still one reply.
+// (Legacy: a specific site value still filters by To: address, for a single-brand mailbox.)
 const SUPPORT_SITE = env.SUPPORT_SITE || "arubaedcardexpress";
+const SITE_FILTER = !["all", "any", "", "*"].includes(String(SUPPORT_SITE).toLowerCase());
 const siteFromTo = (to) => {
   const t = (to || "").toLowerCase();
   if (t.includes("arubaedcardexpress")) return "arubaedcardexpress";
@@ -159,7 +163,7 @@ async function main() {
         reprocess: REPROCESS,
       };
       const site = siteFromTo(payload.to);
-      if (SUPPORT_SITE && site !== SUPPORT_SITE) { skipped++; continue; } // belongs to another domain's CRM
+      if (SITE_FILTER && site !== SUPPORT_SITE) { skipped++; continue; } // legacy To:-address routing (single-brand mailbox)
       // Already replied to (team or bot)? A sent message to this customer at/after their email = handled → skip.
       if (SKIP_IF_REPLIED && payload.from) {
         const sentAt = sentMap.get(payload.from.toLowerCase());
